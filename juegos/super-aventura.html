@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Aventura</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: white;
+            padding: 20px;
+        }
+
+        .game-container {
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 3px solid #6200b3;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(98, 0, 179, 0.3);
+        }
+
+        .game-info {
+            margin: 20px 0;
+            text-align: center;
+            font-size: 24px;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .button {
+            background-color: #6200b3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .button:hover {
+            background-color: #7700dd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls p {
+            margin: 5px 0;
+            color: #cccccc;
+        }
+
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid #6200b3;
+            box-shadow: 0 0 20px rgba(98, 0, 179, 0.5);
+            z-index: 1000;
+        }
+
+        #gameOver h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .score-text {
+            font-size: 20px;
+            margin: 10px 0;
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-info">
+        <div id="score">Puntos: 0</div>
+    </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="gameOver">
+            <h2>¡Juego Terminado!</h2>
+            <p class="score-text">Puntuación final: <span id="finalScore">0</span></p>
+            <button id="restartButton" class="button">Jugar de Nuevo</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="startButton" class="button">Iniciar Juego</button>
+        <a href="C:/videogames/index.html" class="button">← Volver al Menú</a>
+        <p>Controles:</p>
+        <p>↑ : Mover arriba</p>
+        <p>↓ : Mover abajo</p>
+        <p>← : Mover izquierda</p>
+        <p>→ : Mover derecha</p>
+    </div>
+
+    <script>
+        // [El script anterior se mantiene igual, con todos los controles actualizados]
+        // [Todo el código JavaScript se mantiene igual al último proporcionado]
+        // [Incluye el sistema de movimiento con aceleración y fricción]
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const gameOverDiv = document.getElementById('gameOver');
+        const restartButton = document.getElementById('restartButton');
+        const startButton = document.getElementById('startButton');
+
+        let player = {
+            x: canvas.width/2,
+            y: canvas.height/2,
+            size: 20,
+            speed: 5,
+            color: '#6200b3',
+            velocityX: 0,
+            velocityY: 0,
+            friction: 0.8,
+            acceleration: 0.5
+        };
+
+        let coins = [];
+        let obstacles = [];
+        let score = 0;
+        let isGameOver = false;
+        let animationId;
+        let isMovingUp = false;
+        let isMovingDown = false;
+        let isMovingLeft = false;
+        let isMovingRight = false;
+
+        function createCoin() {
+            return {
+                x: Math.random() * (canvas.width - 15),
+                y: Math.random() * (canvas.height - 15),
+                size: 15,
+                color: '#ffd700'
+            };
+        }
+
+        function createObstacle() {
+            return {
+                x: Math.random() * (canvas.width - 20),
+                y: Math.random() * (canvas.height - 20),
+                size: 20,
+                color: '#ff0000'
+            };
+        }
+
+        function updatePlayerPosition() {
+            if (isMovingUp) player.velocityY -= player.acceleration;
+            if (isMovingDown) player.velocityY += player.acceleration;
+            if (isMovingLeft) player.velocityX -= player.acceleration;
+            if (isMovingRight) player.velocityX += player.acceleration;
+
+            player.velocityX *= player.friction;
+            player.velocityY *= player.friction;
+
+            const maxSpeed = player.speed;
+            const speed = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
+            if (speed > maxSpeed) {
+                const ratio = maxSpeed / speed;
+                player.velocityX *= ratio;
+                player.velocityY *= ratio;
+            }
+
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+
+            player.x = Math.max(player.size/2, Math.min(canvas.width - player.size/2, player.x));
+            player.y = Math.max(player.size/2, Math.min(canvas.height - player.size/2, player.y));
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar jugador con efecto de brillo
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size/2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dibujar monedas con efecto brillante
+            coins.forEach(coin => {
+                ctx.fillStyle = coin.color;
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, coin.size/2, 0, Math.PI * 2);
+                ctx.fill();
+                // Brillo
+                ctx.beginPath();
+                ctx.arc(coin.x - coin.size/4, coin.y - coin.size/4, coin.size/6, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            });
+
+            // Dibujar obstáculos con efecto de peligro
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.size, obstacle.size);
+                // Patrón de peligro
+                ctx.strokeStyle = '#ff6666';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obstacle.x + 2, obstacle.y + 2, obstacle.size - 4, obstacle.size - 4);
+            });
+        }
+
+        function checkCollisions() {
+            coins = coins.filter(coin => {
+                const dx = player.x - coin.x;
+                const dy = player.y - coin.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < (player.size + coin.size) / 2) {
+                    score += 10;
+                    scoreElement.textContent = `Puntos: ${score}`;
+                    return false;
+                }
+                return true;
+            });
+
+            obstacles.forEach(obstacle => {
+                if (player.x + player.size/2 > obstacle.x &&
+                    player.x - player.size/2 < obstacle.x + obstacle.size &&
+                    player.y + player.size/2 > obstacle.y &&
+                    player.y - player.size/2 < obstacle.y + obstacle.size) {
+                    gameOver();
+                }
+            });
+        }
+
+        function update() {
+            if (isGameOver) return;
+
+            updatePlayerPosition();
+            checkCollisions();
+
+            if (Math.random() < 0.02 && coins.length < 5) {
+                coins.push(createCoin());
+            }
+            if (Math.random() < 0.01 && obstacles.length < 3) {
+                obstacles.push(createObstacle());
+            }
+
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            cancelAnimationFrame(animationId);
+            document.getElementById('finalScore').textContent = score;
+            gameOverDiv.style.display = 'block';
+        }
+
+        function startGame() {
+            player.x = canvas.width/2;
+            player.y = canvas.height/2;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            coins = [];
+            obstacles = [];
+            score = 0;
+            isGameOver = false;
+            
+            gameOverDiv.style.display = 'none';
+            scoreElement.textContent = 'Puntos: 0';
+            
+            update();
+        }
+
+        document.addEventListener('keydown', event => {
+            if (isGameOver) return;
+            
+            switch(event.keyCode) {
+                case 38: // Arriba
+                    isMovingUp = true;
+                    break;
+                case 40: // Abajo
+                    isMovingDown = true;
+                    break;
+                case 37: // Izquierda
+                    isMovingLeft = true;
+                    break;
+                case 39: // Derecha
+                    isMovingRight = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', event => {
+            switch(event.keyCode) {
+                case 38:
+                    isMovingUp = false;
+                    break;
+                case 40:
+                    isMovingDown = false;
+                    break;
+                case 37:
+                    isMovingLeft = false;
+                    break;
+                case 39:
+                    isMovingRight = false;
+                    break;
+            }
+        });
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+    </script>
+</body>
+</html>

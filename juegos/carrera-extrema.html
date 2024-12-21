@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrera Extrema</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        #gameCanvas {
+            border: 3px solid #6200b3;
+            background: #333;
+            margin: 20px;
+        }
+        .info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .buttons {
+            margin-top: 20px;
+        }
+        .button {
+            background: #6200b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .button:hover {
+            background: #7700dd;
+        }
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <div id="score">Puntos: 0</div>
+        <div id="speed">Velocidad: 0</div>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+    <div class="buttons">
+        <a href="C:\videogames\index.html" class="button">← Volver al Menú</a>
+        <button id="startButton" class="button">Iniciar Juego</button>
+    </div>
+
+    <div id="gameOver">
+        <h2>¡Juego Terminado!</h2>
+        <p>Puntuación: <span id="finalScore">0</span></p>
+        <button id="restartButton" class="button">Jugar de Nuevo</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const speedElement = document.getElementById('speed');
+        const gameOverDiv = document.getElementById('gameOver');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+
+        let player = {
+            x: canvas.width/2,
+            y: canvas.height - 50,
+            width: 40,
+            height: 60,
+            speed: 0,
+            score: 0,
+            isMovingLeft: false,
+            isMovingRight: false
+        };
+
+        let obstacles = [];
+        let gameRunning = false;
+        let animationId;
+
+        function createObstacle() {
+            return {
+                x: Math.random() * (canvas.width - 40),
+                y: -50,
+                width: 40,
+                height: 40,
+                speed: 3 + Math.random() * 2
+            };
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = '#6200b3';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // Detalles del coche
+            ctx.fillStyle = '#000';
+            ctx.fillRect(player.x + 5, player.y + 10, 30, 20);
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(player.x + 5, player.y + player.height - 10, 10, 5);
+            ctx.fillRect(player.x + player.width - 15, player.y + player.height - 10, 10, 5);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = '#ff0000';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        function updateGame() {
+            if (!gameRunning) return;
+
+            // Mover jugador
+            if (player.isMovingLeft && player.x > 0) {
+                player.x -= 5;
+            }
+            if (player.isMovingRight && player.x < canvas.width - player.width) {
+                player.x += 5;
+            }
+
+            // Actualizar obstáculos
+            obstacles.forEach(obstacle => {
+                obstacle.y += obstacle.speed;
+            });
+
+            // Eliminar obstáculos fuera de pantalla
+            obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height);
+
+            // Crear nuevos obstáculos
+            if (Math.random() < 0.02) {
+                obstacles.push(createObstacle());
+            }
+
+            // Verificar colisiones
+            for (let obstacle of obstacles) {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Actualizar puntuación
+            player.score += 0.1;
+            scoreElement.textContent = `Puntos: ${Math.floor(player.score)}`;
+            speedElement.textContent = `Velocidad: ${Math.floor(player.score * 2)} km/h`;
+        }
+
+        function draw() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar carretera
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Líneas de la carretera
+            ctx.strokeStyle = '#fff';
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+
+            drawPlayer();
+            drawObstacles();
+        }
+
+        function gameLoop() {
+            updateGame();
+            draw();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameRunning = true;
+            player.score = 0;
+            obstacles = [];
+            gameOverDiv.style.display = 'none';
+            gameLoop();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            cancelAnimationFrame(animationId);
+            document.getElementById('finalScore').textContent = Math.floor(player.score);
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Controles
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                player.isMovingLeft = true;
+            }
+            if (e.key === 'ArrowRight') {
+                player.isMovingRight = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') {
+                player.isMovingLeft = false;
+            }
+            if (e.key === 'ArrowRight') {
+                player.isMovingRight = false;
+            }
+        });
+
+        // Controles táctiles
+        let touchStartX = null;
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!touchStartX) return;
+            e.preventDefault();
+            
+            const touchX = e.touches[0].clientX;
+            const diff = touchX - touchStartX;
+            
+            if (diff > 0) {
+                player.isMovingRight = true;
+                player.isMovingLeft = false;
+            } else {
+                player.isMovingLeft = true;
+                player.isMovingRight = false;
+            }
+            
+            touchStartX = touchX;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            player.isMovingLeft = false;
+            player.isMovingRight = false;
+            touchStartX = null;
+        });
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
