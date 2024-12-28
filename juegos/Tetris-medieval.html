@@ -32,7 +32,7 @@
             gap: 20px;
             padding: 10px;
             width: 100%;
-            max-width: 800px;
+            max-width: 500px;
             align-items: center;
         }
 
@@ -52,6 +52,7 @@
             background-color: #000;
             max-width: 100%;
             height: auto;
+            max-height: 80vh;
             touch-action: none;
         }
 
@@ -95,21 +96,23 @@
             background-color: #6200b3;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 15px 30px;
             border-radius: 5px;
             cursor: pointer;
             text-decoration: none;
             text-align: center;
-            font-size: 16px;
+            font-size: 18px;
             width: 100%;
             max-width: 200px;
-            margin: 5px auto;
+            margin: 10px auto;
             touch-action: manipulation;
-            transition: background-color 0.3s ease;
+            z-index: 100;
+            position: relative;            
         }
 
         .button:hover {
             background-color: #7700dd;
+            transform: scale(0.98);
         }
 
         .button:active {
@@ -281,29 +284,39 @@
     <script>
         // Configuración del canvas responsive
         function resizeGame() {
-            const gameBoard = document.getElementById('gameBoard');
-            const isMobile = window.innerWidth < 768;
-            
-            // Calcular el tamaño óptimo para el canvas
-            let maxWidth = isMobile ? 
-                Math.min(window.innerWidth - 20, window.innerHeight * 0.3 * 10) : 
-                Math.min(window.innerWidth * 0.4, 300);
-            
-            const BLOCK_SIZE = Math.floor(maxWidth / 10);
-            const width = BLOCK_SIZE * 10;
-            const height = BLOCK_SIZE * 20;
-            
-            gameBoard.width = width;
-            gameBoard.height = height;
-            
-            // Ajustar el tamaño del canvas de la siguiente pieza
-            const nextPieceCanvas = document.getElementById('nextPiece');
-            const nextPieceSize = Math.min(100, maxWidth * 0.4);
-            nextPieceCanvas.width = nextPieceSize;
-            nextPieceCanvas.height = nextPieceSize;
-            
-            return BLOCK_SIZE;
+        const gameBoard = document.getElementById('gameBoard');
+        const isMobile = window.innerWidth < 768;
+        
+        // Calcular el tamaño óptimo para el canvas
+        let maxWidth;
+        if (isMobile) {
+            // En móviles, usar un porcentaje del ancho de la pantalla
+            maxWidth = Math.min(
+                window.innerWidth * 0.9, // 90% del ancho de la pantalla
+                window.innerHeight * 0.5  // 50% de la altura de la pantalla
+            );
+        } else {
+            maxWidth = Math.min(window.innerWidth * 0.3, 300);
         }
+        
+        // Asegurar que el tamaño del bloque sea un número entero
+        const BLOCK_SIZE = Math.floor(maxWidth / 10);
+        
+        // Establecer dimensiones del canvas
+        const width = BLOCK_SIZE * 10;
+        const height = BLOCK_SIZE * 20;
+        
+        gameBoard.width = width;
+        gameBoard.height = height;
+        
+        // Ajustar el canvas de la siguiente pieza
+        const nextPieceCanvas = document.getElementById('nextPiece');
+        const nextPieceSize = Math.min(100, maxWidth * 0.4);
+        nextPieceCanvas.width = nextPieceSize;
+        nextPieceCanvas.height = nextPieceSize;
+        
+        return BLOCK_SIZE;
+    }
 
         const canvas = document.getElementById('gameBoard');
         const ctx = canvas.getContext('2d');
