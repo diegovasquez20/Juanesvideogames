@@ -2,9 +2,16 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tetris Medieval</title>
     <style>
+        /* Reset y estilos base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             display: flex;
             flex-direction: column;
@@ -14,20 +21,41 @@
             background-color: #1a1a1a;
             font-family: Arial, sans-serif;
             color: white;
+            overflow-x: hidden;
+            touch-action: manipulation;
         }
 
+        /* Contenedor principal del juego */
         .game-container {
             display: flex;
+            flex-direction: column;
             gap: 20px;
-            padding: 20px;
-            align-items: flex-start;
+            padding: 10px;
+            width: 100%;
+            max-width: 800px;
+            align-items: center;
         }
 
+        /* Media query para pantallas más grandes */
+        @media (min-width: 768px) {
+            .game-container {
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: center;
+                padding: 20px;
+            }
+        }
+
+        /* Estilos del tablero de juego */
         #gameBoard {
             border: 3px solid #6200b3;
             background-color: #000;
+            max-width: 100%;
+            height: auto;
+            touch-action: none;
         }
 
+        /* Panel de información */
         .info-panel {
             display: flex;
             flex-direction: column;
@@ -35,15 +63,34 @@
             padding: 20px;
             background-color: #2d2d2d;
             border-radius: 10px;
-            min-width: 200px;
+            width: 100%;
+            max-width: 300px;
         }
 
-        .next-piece {
-            background-color: #000;
-            padding: 10px;
-            border: 2px solid #6200b3;
-        }
-
+        /* Contenedor de la siguiente pieza */
+        .next-piece-container {
+        background-color: #000;
+        padding: 10px;
+        border: 2px solid #6200b3;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+        .next-piece-container h3 {
+        color: white;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+        #nextPiece {
+        width: 100px;
+        height: 100px;
+        background-color: #000;
+        border: 1px solid #6200b3;
+    }
+        /* Estilos de botones */
         .button {
             background-color: #6200b3;
             color: white;
@@ -54,12 +101,22 @@
             text-decoration: none;
             text-align: center;
             font-size: 16px;
+            width: 100%;
+            max-width: 200px;
+            margin: 5px auto;
+            touch-action: manipulation;
+            transition: background-color 0.3s ease;
         }
 
         .button:hover {
             background-color: #7700dd;
         }
 
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        /* Panel de controles */
         .controls {
             margin-top: 20px;
             text-align: center;
@@ -67,35 +124,115 @@
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
+            width: 100%;
+            max-width: 300px;
         }
 
+        /* Título medieval */
         .medieval-title {
             color: #ffd700;
             text-align: center;
-            font-size: 24px;
+            font-size: clamp(24px, 5vw, 36px);
             margin: 20px 0;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-weight: bold;
+            letter-spacing: 2px;
         }
 
+        /* Textos de puntuación */
         .score-text {
             font-size: 18px;
             margin: 5px 0;
+            text-align: center;
+            color: #ffd700;
         }
 
+        /* Modal de Game Over */
         #gameOver {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             padding: 20px;
             border-radius: 10px;
             text-align: center;
             display: none;
+            z-index: 1000;
+            width: 90%;
+            max-width: 300px;
+            border: 2px solid #6200b3;
         }
 
-        #nextPiece {
-            background-color: #000;
+        /* Controles móviles */
+        .mobile-controls {
+            display: none;
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            grid-template-areas:
+                ". up ."
+                "left rotate right"
+                "down . instant";
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 767px) {
+            .mobile-controls {
+                display: grid;
+            }
+
+            .controls {
+                display: none;
+            }
+        }
+
+        /* Botones de control móvil */
+        .control-btn {
+            background-color: #6200b3;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 20px;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .control-btn:active {
+            background-color: #7700dd;
+            transform: scale(0.95);
+        }
+
+        /* Posicionamiento de botones de control */
+        #leftBtn { grid-area: left; }
+        #rightBtn { grid-area: right; }
+        #rotateBtn { grid-area: rotate; }
+        #dropBtn { grid-area: down; }
+        #instantDropBtn { grid-area: instant; }
+
+        /* Media query para modo paisaje en móviles */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .game-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            .mobile-controls {
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                margin: 0;
+                transform: scale(0.8);
+            }
+
+            .info-panel {
+                transform: scale(0.8);
+            }
         }
     </style>
 </head>
@@ -103,12 +240,12 @@
     <h1 class="medieval-title">Tetris Medieval</h1>
     
     <div class="game-container">
-        <canvas id="gameBoard" width="300" height="600"></canvas>
+        <canvas id="gameBoard"></canvas>
         
         <div class="info-panel">
-            <div>
+            <div class="next-piece-container">
                 <h3>Siguiente pieza:</h3>
-                <canvas id="nextPiece" width="100" height="100"></canvas>
+                <canvas id="nextPiece"></canvas>
             </div>
             <div>
                 <h3 class="score-text">Puntuación: <span id="score">0</span></h3>
@@ -118,6 +255,14 @@
             <button id="startButton" class="button">Iniciar Juego</button>
             <a href="/Juanesvideogames/index.html" class="button">← Volver al Menú</a>
         </div>
+    </div>
+
+    <div class="mobile-controls">
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="rotateBtn">↑</button>
+        <button class="control-btn" id="rightBtn">→</button>
+        <button class="control-btn" id="dropBtn">↓</button>
+        <button class="control-btn" id="instantDropBtn">⇓</button>
     </div>
 
     <div class="controls">
@@ -133,16 +278,43 @@
         <p>Puntuación final: <span id="finalScore">0</span></p>
         <button id="restartButton" class="button">Jugar de Nuevo</button>
     </div>
-
     <script>
+        // Configuración del canvas responsive
+        function resizeGame() {
+            const gameBoard = document.getElementById('gameBoard');
+            const isMobile = window.innerWidth < 768;
+            
+            // Calcular el tamaño óptimo para el canvas
+            let maxWidth = isMobile ? 
+                Math.min(window.innerWidth - 20, window.innerHeight * 0.3 * 10) : 
+                Math.min(window.innerWidth * 0.4, 300);
+            
+            const BLOCK_SIZE = Math.floor(maxWidth / 10);
+            const width = BLOCK_SIZE * 10;
+            const height = BLOCK_SIZE * 20;
+            
+            gameBoard.width = width;
+            gameBoard.height = height;
+            
+            // Ajustar el tamaño del canvas de la siguiente pieza
+            const nextPieceCanvas = document.getElementById('nextPiece');
+            const nextPieceSize = Math.min(100, maxWidth * 0.4);
+            nextPieceCanvas.width = nextPieceSize;
+            nextPieceCanvas.height = nextPieceSize;
+            
+            return BLOCK_SIZE;
+        }
+
         const canvas = document.getElementById('gameBoard');
         const ctx = canvas.getContext('2d');
         const nextPieceCanvas = document.getElementById('nextPiece');
         const nextPieceCtx = nextPieceCanvas.getContext('2d');
         
-        const BLOCK_SIZE = 30;
+        let BLOCK_SIZE = resizeGame();
         const BOARD_WIDTH = 10;
         const BOARD_HEIGHT = 20;
+        
+        // Variables del juego
         const COLORS = [
             '#ff0000', // Rojo
             '#00ff00', // Verde
@@ -161,6 +333,7 @@
         let currentPiece;
         let nextPiece;
         let gameOver = false;
+        let isPaused = false;
 
         const PIECES = [
             [[1,1,1,1]], // I
@@ -183,11 +356,11 @@
             };
         }
 
-        function drawBlock(x, y, color) {
+        function drawBlock(ctx, x, y, color, blockSize = BLOCK_SIZE) {
             ctx.fillStyle = COLORS[color];
-            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+            ctx.fillRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
             ctx.strokeStyle = '#000';
-            ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+            ctx.strokeRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
         }
 
         function drawBoard() {
@@ -197,41 +370,148 @@
             for(let y = 0; y < BOARD_HEIGHT; y++) {
                 for(let x = 0; x < BOARD_WIDTH; x++) {
                     if(board[y][x]) {
-                        drawBlock(x, y, board[y][x] - 1);
+                        drawBlock(ctx, x, y, board[y][x] - 1);
                     }
                 }
             }
         }
 
-        function drawPiece(piece, ctx, offsetX = 0, offsetY = 0) {
+        function drawPiece(piece, context, offsetX = 0, offsetY = 0, blockSize = BLOCK_SIZE) {
             piece.shape.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if(value) {
-                        ctx.fillStyle = COLORS[piece.color];
-                        ctx.fillRect(
-                            (piece.x + x + offsetX) * BLOCK_SIZE, 
-                            (piece.y + y + offsetY) * BLOCK_SIZE, 
-                            BLOCK_SIZE - 1, 
-                            BLOCK_SIZE - 1
-                        );
-                        ctx.strokeStyle = '#000';
-                        ctx.strokeRect(
-                            (piece.x + x + offsetX) * BLOCK_SIZE, 
-                            (piece.y + y + offsetY) * BLOCK_SIZE, 
-                            BLOCK_SIZE - 1, 
-                            BLOCK_SIZE - 1
-                        );
+                        drawBlock(context, piece.x + x + offsetX, piece.y + y + offsetY, piece.color, blockSize);
                     }
                 });
             });
         }
 
         function drawNextPiece() {
-            nextPieceCtx.fillStyle = '#000';
-            nextPieceCtx.fillRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
-            drawPiece(nextPiece, nextPieceCtx, 1, 1);
-        }
+        const nextPieceCanvas = document.getElementById('nextPiece');
+        const nextPieceCtx = nextPieceCanvas.getContext('2d');
+        
+        // Limpiar el canvas
+        nextPieceCtx.fillStyle = '#000';
+        nextPieceCtx.fillRect(0, 0, nextPieceCanvas.width, nextPieceCanvas.height);
+        
+        if (!nextPiece) return;
+        
+        // Calcular el tamaño de bloque para la siguiente pieza
+        const blockSize = Math.min(
+            nextPieceCanvas.width / 4,
+            nextPieceCanvas.height / 4
+        );
+        
+        // Calcular offsets para centrar la pieza
+        const pieceWidth = nextPiece.shape[0].length;
+        const pieceHeight = nextPiece.shape.length;
+        
+        const offsetX = Math.floor((nextPieceCanvas.width - (pieceWidth * blockSize)) / 2);
+        const offsetY = Math.floor((nextPieceCanvas.height - (pieceHeight * blockSize)) / 2);
+        
+        // Dibujar la siguiente pieza
+        nextPiece.shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value) {
+                    nextPieceCtx.fillStyle = COLORS[nextPiece.color];
+                    nextPieceCtx.fillRect(
+                        offsetX + x * blockSize,
+                        offsetY + y * blockSize,
+                        blockSize - 1,
+                        blockSize - 1
+                    );
+                    nextPieceCtx.strokeStyle = '#000';
+                    nextPieceCtx.strokeRect(
+                        offsetX + x * blockSize,
+                        offsetY + y * blockSize,
+                        blockSize - 1,
+                        blockSize - 1
+                    );
+                }
+            });
+        });
+    }
+    // Actualizar el manejo de eventos táctiles
+    let touchStartTime = 0;
+    let isTouchMoving = false;
 
+    function handleTouchStart(event) {
+        if (gameOver || !gameLoop) return;
+        
+        event.preventDefault();
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchStartTime = Date.now();
+        isTouchMoving = false;
+    }
+
+    function handleTouchMove(event) {
+        if (gameOver || !gameLoop) return;
+        
+        event.preventDefault();
+        isTouchMoving = true;
+        
+        const touch = event.touches[0];
+        const diffX = touch.clientX - touchStartX;
+        const diffY = touch.clientY - touchStartY;
+        
+        if (Math.abs(diffX) > 30) {
+            if (diffX > 0) {
+                moveRight();
+            } else {
+                moveLeft();
+            }
+            touchStartX = touch.clientX;
+        }
+        
+        if (diffY > 30) {
+            moveDown();
+            touchStartY = touch.clientY;
+        }
+    }
+
+    function handleTouchEnd(event) {
+        if (gameOver || !gameLoop) return;
+        
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime;
+        
+        // Si fue un toque rápido y no hubo movimiento, rotar la pieza
+        if (touchDuration < 200 && !isTouchMoving) {
+            rotatePiece();
+            draw();
+        }
+    }
+
+    function moveLeft() {
+        currentPiece.x--;
+        if (collision(currentPiece, board)) {
+            currentPiece.x++;
+        }
+        draw();
+    }
+
+    function moveRight() {
+        currentPiece.x++;
+        if (collision(currentPiece, board)) {
+            currentPiece.x--;
+        }
+        draw();
+    }
+
+    function moveDown() {
+        currentPiece.y++;
+        if (collision(currentPiece, board)) {
+            currentPiece.y--;
+        }
+        draw();
+    }
+
+    // Asegúrate de que estos event listeners estén correctamente agregados
+    canvas.addEventListener('touchstart', handleTouchStart, false);
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, false);
         function collision(piece, board) {
             return piece.shape.some((row, y) => {
                 return row.some((value, x) => {
@@ -291,11 +571,13 @@
                 document.getElementById('lines').textContent = lines;
                 
                 clearInterval(gameLoop);
-                gameLoop = setInterval(update, 1000 - (level * 50));
+                gameLoop = setInterval(update, Math.max(100, 1000 - (level * 50)));
             }
         }
 
         function update() {
+            if (isPaused) return;
+            
             currentPiece.y++;
             if(collision(currentPiece, board)) {
                 currentPiece.y--;
@@ -318,43 +600,42 @@
 
         function draw() {
             drawBoard();
-            drawPiece(currentPiece, ctx);
+            if (!gameOver && !isPaused) {
+                drawPiece(currentPiece, ctx);
+            }
         }
 
-        document.addEventListener('keydown', event => {
-            if(gameOver) return;
-
-            switch(event.keyCode) {
-                case 37: // Izquierda
+        // Función para manejar controles táctiles
+        function handleTouch(direction) {
+            if (gameOver || isPaused) return;
+            
+            switch(direction) {
+                case 'left':
                     currentPiece.x--;
                     if(collision(currentPiece, board)) {
                         currentPiece.x++;
                     }
                     break;
-                case 39: // Derecha
+                case 'right':
                     currentPiece.x++;
                     if(collision(currentPiece, board)) {
                         currentPiece.x--;
                     }
                     break;
-                case 40: // Abajo
+                case 'rotate':
+                    rotatePiece();
+                    break;
+                case 'down':
                     currentPiece.y++;
                     if(collision(currentPiece, board)) {
                         currentPiece.y--;
                     }
                     break;
-                case 38: // Rotar
-                    rotatePiece();
-                    break;
-                case 32: // Espacio - Caída instantánea
-                    let dropDistance = 0;
-                    while(!collision({
-                        ...currentPiece,
-                        y: currentPiece.y + dropDistance + 1
-                    }, board)) {
-                        dropDistance++;
+                case 'drop':
+                    while(!collision(currentPiece, board)) {
+                        currentPiece.y++;
                     }
-                    currentPiece.y += dropDistance;
+                    currentPiece.y--;
                     mergePiece();
                     checkLines();
                     currentPiece = nextPiece;
@@ -369,29 +650,263 @@
                     break;
             }
             draw();
-        });
+        }
 
         function resetGame() {
+            // Limpiar el tablero y reiniciar variables
             board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
             score = 0;
             lines = 0;
             level = 1;
             gameOver = false;
-            document.getElementById('gameOver').style.display = 'none';
+            isPaused = false;
             
+            // Reiniciar la UI
+            document.getElementById('gameOver').style.display = 'none';
             document.getElementById('score').textContent = '0';
             document.getElementById('level').textContent = '1';
             document.getElementById('lines').textContent = '0';
             
-            clearInterval(gameLoop);
+            // Detener el loop anterior si existe
+            if (gameLoop) {
+                clearInterval(gameLoop);
+            }
+            
+            // Crear nuevas piezas
+            currentPiece = createPiece();
+            nextPiece = createPiece();
+            
+            // Dibujar estado inicial
+            drawBoard();
+            drawNextPiece();
+            
+            // Iniciar el loop del juego
+            gameLoop = setInterval(update, 1000);
+            
+            // Cambiar el texto del botón
+            document.getElementById('startButton').textContent = 'Reiniciar Juego';
+        }
+
+        // Función para preparar el tablero inicial sin empezar el juego
+        function initBoard() {
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            drawBoard();
+        }
+
+        // Event Listeners
+        document.addEventListener('keydown', event => {
+            if(gameOver) return;
+
+            switch(event.keyCode) {
+                case 37: // Izquierda
+                    handleTouch('left');
+                    break;
+                case 39: // Derecha
+                    handleTouch('right');
+                    break;
+                case 40: // Abajo
+                    handleTouch('down');
+                    break;
+                case 38: // Rotar
+                    handleTouch('rotate');
+                    break;
+                case 32: // Espacio - Caída instantánea
+                    handleTouch('drop');
+                    break;
+                case 80: // P - Pausar
+                    isPaused = !isPaused;
+                    break;
+            }
+        });
+
+        // Controles táctiles
+        document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch('left');
+        });
+
+        document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch('right');
+        });
+
+        document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch('rotate');
+        });
+
+        document.getElementById('dropBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch('down');
+        });
+
+        document.getElementById('instantDropBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouch('drop');
+        });
+
+        // Prevenir zoom y comportamientos no deseados en móviles
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        });
+
+        // Botones de inicio/reinicio
+        document.getElementById('startButton').addEventListener('click', resetGame);
+        document.getElementById('restartButton').addEventListener('click', resetGame);
+
+        // Evento de redimensionamiento
+        window.addEventListener('resize', () => {
+            BLOCK_SIZE = resizeGame();
+            draw();
+            drawNextPiece();
+        });
+
+        // Inicializar el canvas y preparar el juego cuando se carga la página
+        window.addEventListener('load', () => {
+            // Inicializar el tablero vacío
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            
+            // Dibujar el tablero vacío
+            drawBoard();
+            
+            // Crear las piezas iniciales pero no iniciar el juego
             currentPiece = createPiece();
             nextPiece = createPiece();
             drawNextPiece();
-            gameLoop = setInterval(update, 1000);
+        });
+    </script>
+<script>
+    // Variables para el control táctil
+    let touchStartX = null;
+    let touchStartY = null;
+    const SWIPE_THRESHOLD = 30; // Distancia mínima para considerar un swipe
+    let lastTap = 0;
+    let touchTimeout = null;
+
+    // Manejo de eventos táctiles en el canvas
+    canvas.addEventListener('touchstart', handleTouchStart, false);
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, false);
+
+    function handleTouchStart(event) {
+        if (gameOver || !gameLoop) return;
+        
+        event.preventDefault();
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+
+        // Detectar doble tap
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        lastTap = currentTime;
+
+        if (tapLength < 300 && tapLength > 0) {
+            // Doble tap detectado - caída instantánea
+            hardDrop();
         }
 
-        document.getElementById('startButton').addEventListener('click', resetGame);
-        document.getElementById('restartButton').addEventListener('click', resetGame);
-    </script>
+        // Configurar timeout para tap simple
+        touchTimeout = setTimeout(() => {
+            // Tap simple - rotar pieza
+            rotatePiece();
+            draw();
+        }, 200);
+    }
+
+    function handleTouchMove(event) {
+        if (gameOver || !gameLoop || !touchStartX || !touchStartY) return;
+        
+        event.preventDefault();
+        clearTimeout(touchTimeout); // Cancelar la rotación si el usuario está moviendo
+
+        const touch = event.touches[0];
+        const diffX = touch.clientX - touchStartX;
+        const diffY = touch.clientY - touchStartY;
+
+        // Si el movimiento horizontal es mayor que el umbral
+        if (Math.abs(diffX) > SWIPE_THRESHOLD) {
+            // Mover derecha o izquierda
+            if (diffX > 0) {
+                currentPiece.x++;
+                if (collision(currentPiece, board)) {
+                    currentPiece.x--;
+                }
+            } else {
+                currentPiece.x--;
+                if (collision(currentPiece, board)) {
+                    currentPiece.x++;
+                }
+            }
+            touchStartX = touch.clientX;
+            draw();
+        }
+
+        // Si el movimiento vertical hacia abajo es mayor que el umbral
+        if (diffY > SWIPE_THRESHOLD) {
+            currentPiece.y++;
+            if (collision(currentPiece, board)) {
+                currentPiece.y--;
+            }
+            touchStartY = touch.clientY;
+            draw();
+        }
+    }
+
+    function handleTouchEnd(event) {
+        clearTimeout(touchTimeout);
+        touchStartX = null;
+        touchStartY = null;
+    }
+
+    // Función de caída instantánea
+    function hardDrop() {
+        if (gameOver || !gameLoop) return;
+
+        while (!collision(currentPiece, board)) {
+            currentPiece.y++;
+        }
+        currentPiece.y--;
+        mergePiece();
+        checkLines();
+        currentPiece = nextPiece;
+        nextPiece = createPiece();
+        drawNextPiece();
+        
+        if (collision(currentPiece, board)) {
+            gameOver = true;
+            clearInterval(gameLoop);
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+        }
+        draw();
+    }
+
+    // Remover los event listeners anteriores de los botones táctiles
+    const mobileControls = document.querySelector('.mobile-controls');
+    if (mobileControls) {
+        mobileControls.remove();
+    }
+
+    // Modificar los estilos para el canvas
+    canvas.style.touchAction = 'none';
+    
+    // Actualizar el texto de los controles
+    const controlsDiv = document.querySelector('.controls');
+    controlsDiv.innerHTML = `
+        <p>Controles:</p>
+        <p>Toque simple: Rotar pieza</p>
+        <p>Deslizar: Mover pieza</p>
+        <p>Doble toque: Caída instantánea</p>
+        <p>Deslizar abajo: Bajar rápido</p>
+    `;
+</script>
+<!-- El código JavaScript irá en la parte 2 -->
 </body>
 </html>
