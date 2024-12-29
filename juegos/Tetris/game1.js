@@ -1,4 +1,3 @@
-// game1.js - Funciones principales del juego
 
 // Variables del canvas
 let canvas = document.getElementById('gameBoard');
@@ -11,8 +10,13 @@ let BLOCK_SIZE;
 const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 20;
 const COLORS = [
-    '#ff0000', '#00ff00', '#0000ff', '#ffff00', 
-    '#ff00ff', '#00ffff', '#ffa500'
+    '#ff0000', // Rojo
+    '#00ff00', // Verde
+    '#0000ff', // Azul
+    '#ffff00', // Amarillo
+    '#ff00ff', // Magenta
+    '#00ffff', // Cian
+    '#ffa500'  // Naranja
 ];
 
 const PIECES = [
@@ -43,11 +47,11 @@ function resizeGame() {
     
     if (isMobile) {
         maxWidth = Math.min(
-            window.innerWidth * 0.9,
-            window.innerHeight * 0.5
+            window.innerWidth * 0.8, // Reducido a 80%
+            window.innerHeight * 0.4  // Reducido a 40%
         );
     } else {
-        maxWidth = Math.min(window.innerWidth * 0.3, 300);
+        maxWidth = Math.min(window.innerWidth * 0.25, 250); // Reducido
     }
     
     const BLOCK_SIZE = Math.floor(maxWidth / 10);
@@ -57,7 +61,8 @@ function resizeGame() {
     canvas.width = width;
     canvas.height = height;
     
-    const nextPieceSize = Math.min(100, maxWidth * 0.4);
+    // Ajustar tamaño del canvas de siguiente pieza
+    const nextPieceSize = Math.min(80, maxWidth * 0.4);
     nextPieceCanvas.width = nextPieceSize;
     nextPieceCanvas.height = nextPieceSize;
     
@@ -70,18 +75,58 @@ function initBoard() {
     drawBoard();
 }
 
-// Funciones de dibujo
+// Funciones de dibujo mejoradas
 function drawBlock(ctx, x, y, color, blockSize = BLOCK_SIZE) {
+    const xPos = x * blockSize;
+    const yPos = y * blockSize;
+    const size = blockSize - 1;
+    
+    // Color base del bloque
     ctx.fillStyle = COLORS[color];
-    ctx.fillRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
-    ctx.strokeStyle = '#000';
-    ctx.strokeRect(x * blockSize, y * blockSize, blockSize - 1, blockSize - 1);
+    ctx.fillRect(xPos, yPos, size, size);
+    
+    // Efecto de ladrillo
+    const gradient = ctx.createLinearGradient(xPos, yPos, xPos + size, yPos + size);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(xPos, yPos, size, size);
+    
+    // Líneas del ladrillo
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(xPos, yPos + size/2, size, 1);
+    ctx.fillRect(xPos + size/2, yPos, 1, size);
+    
+    // Borde del bloque
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.strokeRect(xPos, yPos, size, size);
 }
 
 function drawBoard() {
-    ctx.fillStyle = '#000';
+    // Fondo del tablero con gradiente
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#000000');
+    gradient.addColorStop(1, '#1a1a1a');
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Dibujar la cuadrícula tenue
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    for(let i = 0; i <= BOARD_WIDTH; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * BLOCK_SIZE, 0);
+        ctx.lineTo(i * BLOCK_SIZE, canvas.height);
+        ctx.stroke();
+    }
+    for(let i = 0; i <= BOARD_HEIGHT; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * BLOCK_SIZE);
+        ctx.lineTo(canvas.width, i * BLOCK_SIZE);
+        ctx.stroke();
+    }
+    
+    // Dibujar bloques
     for(let y = 0; y < BOARD_HEIGHT; y++) {
         for(let x = 0; x < BOARD_WIDTH; x++) {
             if(board[y][x]) {
@@ -122,7 +167,7 @@ function drawNextPiece() {
     drawPiece(tempPiece, nextPieceCtx, offsetX, offsetY, blockSize);
 }
 
-// Funciones del juego
+// Resto de funciones del juego sin cambios
 function createPiece() {
     const piece = PIECES[Math.floor(Math.random() * PIECES.length)];
     const color = Math.floor(Math.random() * COLORS.length);
