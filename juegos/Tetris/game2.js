@@ -6,8 +6,10 @@ let touchStartY = null;
 let lastTap = 0;
 let touchTimeout = null;
 const SWIPE_THRESHOLD = 30;
+const TAP_THRESHOLD = 10;
 let isTouchMoving = false;
 let touchStartTime = 0;
+let touchMoveDistance = 0;
 
 // Variables para efectos visuales
 let particles = [];
@@ -15,7 +17,7 @@ const PARTICLE_COUNT = 15;
 const EXPLOSION_DURATION = 500;
 let isAnimatingExplosion = false;
 
-// Funciones para efectos de explosión
+// Funciones para efectos visuales
 function createParticle(x, y, color) {
     return {
         x: x * BLOCK_SIZE + BLOCK_SIZE / 2,
@@ -100,7 +102,7 @@ async function animateLineClearing(completedLines) {
     });
 }
 
-// Funciones principales del juego
+// Funciones del juego
 async function checkLines() {
     let linesCleared = 0;
     const completedLines = [];
@@ -165,7 +167,7 @@ function draw() {
     }
 }
 
-// Funciones de control
+// Funciones de movimiento
 function moveLeft() {
     if (gameOver || isPaused || isAnimatingExplosion) return;
     currentPiece.x--;
@@ -214,7 +216,7 @@ function hardDrop() {
     draw();
 }
 
-// Eventos táctiles
+// Controles táctiles mejorados
 function handleTouchStart(event) {
     if (gameOver || !gameLoop || isAnimatingExplosion) return;
     
@@ -223,6 +225,7 @@ function handleTouchStart(event) {
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
+    touchMoveDistance = 0;
     isTouchMoving = false;
 
     const currentTime = Date.now();
@@ -231,49 +234,53 @@ function handleTouchStart(event) {
 
     if (tapLength < 300 && tapLength > 0) {
         hardDrop();
+        return;
     }
-
-    touchTimeout = setTimeout(() => {
-        if (!isTouchMoving) {
-            rotatePiece();
-            draw();
-        }
-    }, 200);
 }
 
 function handleTouchMove(event) {
     if (gameOver || !gameLoop || !touchStartX || !touchStartY || isAnimatingExplosion) return;
     
     event.preventDefault();
-    clearTimeout(touchTimeout);
-    isTouchMoving = true;
-
     const touch = event.touches[0];
     const diffX = touch.clientX - touchStartX;
     const diffY = touch.clientY - touchStartY;
-
-    if (Math.abs(diffX) > SWIPE_THRESHOLD) {
-        if (diffX > 0) {
-            moveRight();
-        } else {
-            moveLeft();
+    
+    touchMoveDistance = Math.sqrt(diffX * diffX + diffY * diffY);
+    
+    if (touchMoveDistance > SWIPE_THRESHOLD) {
+        isTouchMoving = true;
+        
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            if (diffX > 0) {
+                moveRight();
+            } else {
+                moveLeft();
+            }
+            touchStartX = touch.clientX;
+        } else if (diffY > SWIPE_THRESHOLD) {
+            moveDown();
+            touchStartY = touch.clientY;
         }
-        touchStartX = touch.clientX;
-    }
-
-    if (diffY > SWIPE_THRESHOLD) {
-        moveDown();
-        touchStartY = touch.clientY;
     }
 }
 
-function handleTouchEnd() {
-    clearTimeout(touchTimeout);
+function handleTouchEnd(event) {
+    if (gameOver || !gameLoop || isAnimatingExplosion) return;
+    
+    const touchEndTime = Date.now() - touchStartTime;
+    
+    if (!isTouchMoving && touchMoveDistance < TAP_THRESHOLD && touchEndTime < 200) {
+        rotatePiece();
+        draw();
+    }
+    
     touchStartX = null;
     touchStartY = null;
+    isTouchMoving = false;
 }
 
-// Reset y control del juego
+// Reset del juego
 function resetGame() {
     board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
     score = 0;
@@ -314,7 +321,7 @@ document.addEventListener('keydown', event => {
         case 40: moveDown(); break;
         case 38: rotatePiece(); draw(); break;
         case 32: hardDrop(); break;
-        case 80: // P - Pausar
+        case 80:
             if (!isAnimatingExplosion) {
                 isPaused = !isPaused;
             }
@@ -322,10 +329,12 @@ document.addEventListener('keydown', event => {
     }
 });
 
-// Eventos táctiles
-canvas.addEventListener('touchstart', handleTouchStart, false);
-canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-canvas.addEventListener('touchend', handleTouchEnd, false);
+// Inicializar controles táctiles
+function initTouchControls() {
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+}
 
 // Eventos de botones
 document.getElementById('startButton').addEventListener('click', resetGame);
@@ -341,6 +350,7 @@ window.addEventListener('resize', () => {
 // Inicialización
 window.addEventListener('load', () => {
     initBoard();
+    initTouchControls();
     document.getElementById('restartButton').style.display = 'none';
     document.getElementById('gameOver').style.display = 'none';
 });
