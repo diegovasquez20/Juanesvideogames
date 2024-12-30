@@ -73,8 +73,52 @@ function drawParticles() {
     particles = particles.filter(particle => particle.alpha > 0.1);
 }
 
+function drawScoreText(text, color = '#FFD700') {
+    const x = canvas.width / 2;
+    const y = canvas.height / 2;
+    
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Efecto de aparición y desaparición
+    let alpha = 1;
+    const animate = () => {
+        ctx.globalAlpha = alpha;
+        // Sombra para efecto 3D
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        
+        // Dibujar el texto con borde
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+        
+        alpha -= 0.02;
+        if (alpha > 0) {
+            requestAnimationFrame(animate);
+        }
+    };
+    animate();
+    ctx.restore();
+}
+
 async function animateLineClearing(completedLines) {
     isAnimatingExplosion = true;
+    
+    // Determinar qué texto mostrar basado en el número de líneas
+    let scoreText = '';
+    switch(completedLines.length) {
+        case 1: scoreText = '1'; break;
+        case 2: scoreText = '2'; break;
+        case 3: scoreText = '3'; break;
+        case 4: scoreText = 'TETRIS!'; break;
+    }
     
     completedLines.forEach(y => createExplosionParticles(y));
     
@@ -95,6 +139,11 @@ async function animateLineClearing(completedLines) {
             drawBoard();
             drawPiece(currentPiece, ctx);
             drawParticles();
+            
+            // Mostrar el texto si hay líneas completadas
+            if (scoreText) {
+                drawScoreText(scoreText);
+            }
             
             requestAnimationFrame(animate);
         }
@@ -129,22 +178,17 @@ async function checkLines() {
         document.getElementById('score').textContent = score;
         document.getElementById('level').textContent = level;
         document.getElementById('lines').textContent = lines;
-        
-        if (gameLoop) {
-            clearInterval(gameLoop);
-            gameLoop = setInterval(update, Math.max(100, 1000 - (level * 50)));
-        }
     }
 }
 
-function update() {
+async function update() {
     if (isPaused || gameOver || isAnimatingExplosion) return;
     
     currentPiece.y++;
     if(collision(currentPiece, board)) {
         currentPiece.y--;
         mergePiece();
-        checkLines();
+        await checkLines();
         
         currentPiece = nextPiece;
         nextPiece = createPiece();
@@ -152,7 +196,7 @@ function update() {
         
         if(collision(currentPiece, board)) {
             gameOver = true;
-            clearInterval(gameLoop);
+            clearTimeout(gameLoop);
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('finalScore').textContent = score;
         }
@@ -195,21 +239,21 @@ function moveDown() {
     draw();
 }
 
-function hardDrop() {
+async function hardDrop() {
     if (gameOver || isPaused || isAnimatingExplosion) return;
     while (!collision(currentPiece, board)) {
         currentPiece.y++;
     }
     currentPiece.y--;
     mergePiece();
-    checkLines();
+    await checkLines();
     currentPiece = nextPiece;
     nextPiece = createPiece();
     drawNextPiece();
     
     if (collision(currentPiece, board)) {
         gameOver = true;
-        clearInterval(gameLoop);
+        clearTimeout(gameLoop);
         document.getElementById('gameOver').style.display = 'block';
         document.getElementById('finalScore').textContent = score;
     }
@@ -217,7 +261,7 @@ function hardDrop() {
 }
 
 // Controles táctiles mejorados
-function handleTouchStart(event) {
+async function handleTouchStart(event) {
     if (gameOver || !gameLoop || isAnimatingExplosion) return;
     
     event.preventDefault();
@@ -233,7 +277,7 @@ function handleTouchStart(event) {
     lastTap = currentTime;
 
     if (tapLength < 300 && tapLength > 0) {
-        hardDrop();
+        await hardDrop();
         return;
     }
 }
@@ -297,7 +341,7 @@ function resetGame() {
     document.getElementById('lines').textContent = '0';
     
     if (gameLoop) {
-        clearInterval(gameLoop);
+        clearTimeout(gameLoop);
     }
     
     currentPiece = createPiece();
@@ -305,14 +349,21 @@ function resetGame() {
     drawBoard();
     drawNextPiece();
     
-    gameLoop = setInterval(update, 1000);
+    // Usar setTimeout recursivo en lugar de setInterval
+    const gameLoopFunction = async () => {
+        if (!gameOver && !isPaused) {
+            await update();
+            gameLoop = setTimeout(gameLoopFunction, Math.max(100, 1000 - (level * 50)));
+        }
+    };
+    gameLoop = setTimeout(gameLoopFunction, 1000);
     
     document.getElementById('startButton').style.display = 'none';
     document.getElementById('restartButton').style.display = 'inline-block';
 }
 
 // Event Listeners
-document.addEventListener('keydown', event => {
+document.addEventListener('keydown', async event => {
     if (gameOver || isAnimatingExplosion) return;
 
     switch(event.keyCode) {
@@ -320,7 +371,7 @@ document.addEventListener('keydown', event => {
         case 39: moveRight(); break;
         case 40: moveDown(); break;
         case 38: rotatePiece(); draw(); break;
-        case 32: hardDrop(); break;
+        case 32: await hardDrop(); break;
         case 80:
             if (!isAnimatingExplosion) {
                 isPaused = !isPaused;
