@@ -6,22 +6,123 @@ let touchStartY = null;
 let lastTap = 0;
 let touchTimeout = null;
 const SWIPE_THRESHOLD = 30;
+const TAP_THRESHOLD = 10;
 let isTouchMoving = false;
 let touchStartTime = 0;
+let touchMoveDistance = 0;
 
-// Funciones de juego
-function checkLines() {
+// Variables para efectos visuales
+let particles = [];
+const PARTICLE_COUNT = 15;
+const EXPLOSION_DURATION = 500;
+let isAnimatingExplosion = false;
+
+// Funciones para efectos visuales
+function createParticle(x, y, color) {
+    return {
+        x: x * BLOCK_SIZE + BLOCK_SIZE / 2,
+        y: y * BLOCK_SIZE + BLOCK_SIZE / 2,
+        vx: (Math.random() - 0.5) * 15,
+        vy: (Math.random() - 1) * 15,
+        size: BLOCK_SIZE / 2,
+        alpha: 1,
+        color: color,
+        rotation: Math.random() * Math.PI * 2
+    };
+}
+
+function createExplosionParticles(y) {
+    for(let x = 0; x < BOARD_WIDTH; x++) {
+        if(board[y][x]) {
+            const color = COLORS[board[y][x] - 1];
+            for(let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(createParticle(x, y, color));
+            }
+        }
+    }
+}
+
+function drawParticles() {
+    particles.forEach(particle => {
+        ctx.save();
+        ctx.globalAlpha = particle.alpha;
+        ctx.translate(particle.x, particle.y);
+        ctx.rotate(particle.rotation);
+        
+        // Dibujar partícula con efecto de brillo
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+        
+        // Añadir brillo
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, particle.size);
+        gradient.addColorStop(0, 'rgba(255,255,255,0.5)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+        
+        ctx.restore();
+
+        // Actualizar partícula
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += 0.5;
+        particle.alpha *= 0.95;
+        particle.rotation += 0.1;
+    });
+    
+    particles = particles.filter(particle => particle.alpha > 0.1);
+}
+
+async function animateLineClearing(completedLines) {
+    isAnimatingExplosion = true;
+    
+    completedLines.forEach(y => createExplosionParticles(y));
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const startTime = Date.now();
+    
+    return new Promise(resolve => {
+        function animate() {
+            if (Date.now() - startTime > EXPLOSION_DURATION) {
+                isAnimatingExplosion = false;
+                particles = [];
+                resolve();
+                return;
+            }
+            
+            drawBoard();
+            drawPiece(currentPiece, ctx);
+            drawParticles();
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    });
+}
+
+// Funciones del juego
+async function checkLines() {
     let linesCleared = 0;
+    const completedLines = [];
+    
     for(let y = BOARD_HEIGHT - 1; y >= 0; y--) {
         if(board[y].every(value => value)) {
-            board.splice(y, 1);
-            board.unshift(Array(BOARD_WIDTH).fill(0));
+            completedLines.push(y);
             linesCleared++;
             lines++;
         }
     }
     
     if(linesCleared > 0) {
+        await animateLineClearing(completedLines);
+        
+        completedLines.sort((a, b) => b - a).forEach(y => {
+            board.splice(y, 1);
+            board.unshift(Array(BOARD_WIDTH).fill(0));
+        });
+        
         score += linesCleared * 100 * level;
         level = Math.floor(lines / 10) + 1;
         
@@ -37,7 +138,7 @@ function checkLines() {
 }
 
 function update() {
-    if (isPaused || gameOver) return;
+    if (isPaused || gameOver || isAnimatingExplosion) return;
     
     currentPiece.y++;
     if(collision(currentPiece, board)) {
@@ -66,9 +167,9 @@ function draw() {
     }
 }
 
-// Funciones de control
+// Funciones de movimiento
 function moveLeft() {
-    if (gameOver || isPaused) return;
+    if (gameOver || isPaused || isAnimatingExplosion) return;
     currentPiece.x--;
     if (collision(currentPiece, board)) {
         currentPiece.x++;
@@ -77,7 +178,7 @@ function moveLeft() {
 }
 
 function moveRight() {
-    if (gameOver || isPaused) return;
+    if (gameOver || isPaused || isAnimatingExplosion) return;
     currentPiece.x++;
     if (collision(currentPiece, board)) {
         currentPiece.x--;
@@ -86,7 +187,7 @@ function moveRight() {
 }
 
 function moveDown() {
-    if (gameOver || isPaused) return;
+    if (gameOver || isPaused || isAnimatingExplosion) return;
     currentPiece.y++;
     if (collision(currentPiece, board)) {
         currentPiece.y--;
@@ -95,7 +196,7 @@ function moveDown() {
 }
 
 function hardDrop() {
-    if (gameOver || isPaused) return;
+    if (gameOver || isPaused || isAnimatingExplosion) return;
     while (!collision(currentPiece, board)) {
         currentPiece.y++;
     }
@@ -115,67 +216,71 @@ function hardDrop() {
     draw();
 }
 
-// Eventos táctiles
+// Controles táctiles mejorados
 function handleTouchStart(event) {
-    if (gameOver || !gameLoop) return;
+    if (gameOver || !gameLoop || isAnimatingExplosion) return;
     
     event.preventDefault();
     const touch = event.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
+    touchMoveDistance = 0;
     isTouchMoving = false;
 
-    // Detectar doble tap
     const currentTime = Date.now();
     const tapLength = currentTime - lastTap;
     lastTap = currentTime;
 
     if (tapLength < 300 && tapLength > 0) {
         hardDrop();
+        return;
     }
-
-    touchTimeout = setTimeout(() => {
-        if (!isTouchMoving) {
-            rotatePiece();
-            draw();
-        }
-    }, 200);
 }
 
 function handleTouchMove(event) {
-    if (gameOver || !gameLoop || !touchStartX || !touchStartY) return;
+    if (gameOver || !gameLoop || !touchStartX || !touchStartY || isAnimatingExplosion) return;
     
     event.preventDefault();
-    clearTimeout(touchTimeout);
-    isTouchMoving = true;
-
     const touch = event.touches[0];
     const diffX = touch.clientX - touchStartX;
     const diffY = touch.clientY - touchStartY;
-
-    if (Math.abs(diffX) > SWIPE_THRESHOLD) {
-        if (diffX > 0) {
-            moveRight();
-        } else {
-            moveLeft();
+    
+    touchMoveDistance = Math.sqrt(diffX * diffX + diffY * diffY);
+    
+    if (touchMoveDistance > SWIPE_THRESHOLD) {
+        isTouchMoving = true;
+        
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            if (diffX > 0) {
+                moveRight();
+            } else {
+                moveLeft();
+            }
+            touchStartX = touch.clientX;
+        } else if (diffY > SWIPE_THRESHOLD) {
+            moveDown();
+            touchStartY = touch.clientY;
         }
-        touchStartX = touch.clientX;
-    }
-
-    if (diffY > SWIPE_THRESHOLD) {
-        moveDown();
-        touchStartY = touch.clientY;
     }
 }
 
-function handleTouchEnd() {
-    clearTimeout(touchTimeout);
+function handleTouchEnd(event) {
+    if (gameOver || !gameLoop || isAnimatingExplosion) return;
+    
+    const touchEndTime = Date.now() - touchStartTime;
+    
+    if (!isTouchMoving && touchMoveDistance < TAP_THRESHOLD && touchEndTime < 200) {
+        rotatePiece();
+        draw();
+    }
+    
     touchStartX = null;
     touchStartY = null;
+    isTouchMoving = false;
 }
 
-// Reset y control del juego
+// Reset del juego
 function resetGame() {
     board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
     score = 0;
@@ -183,6 +288,8 @@ function resetGame() {
     level = 1;
     gameOver = false;
     isPaused = false;
+    isAnimatingExplosion = false;
+    particles = [];
     
     document.getElementById('gameOver').style.display = 'none';
     document.getElementById('score').textContent = '0';
@@ -206,24 +313,28 @@ function resetGame() {
 
 // Event Listeners
 document.addEventListener('keydown', event => {
-    if (gameOver) return;
+    if (gameOver || isAnimatingExplosion) return;
 
     switch(event.keyCode) {
-        case 37: moveLeft(); break;      // Izquierda
-        case 39: moveRight(); break;     // Derecha
-        case 40: moveDown(); break;      // Abajo
-        case 38: rotatePiece(); draw(); break;  // Rotar
-        case 32: hardDrop(); break;      // Espacio
-        case 80: // P - Pausar
-            isPaused = !isPaused;
+        case 37: moveLeft(); break;
+        case 39: moveRight(); break;
+        case 40: moveDown(); break;
+        case 38: rotatePiece(); draw(); break;
+        case 32: hardDrop(); break;
+        case 80:
+            if (!isAnimatingExplosion) {
+                isPaused = !isPaused;
+            }
             break;
     }
 });
 
-// Eventos táctiles
-canvas.addEventListener('touchstart', handleTouchStart, false);
-canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-canvas.addEventListener('touchend', handleTouchEnd, false);
+// Inicializar controles táctiles
+function initTouchControls() {
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+}
 
 // Eventos de botones
 document.getElementById('startButton').addEventListener('click', resetGame);
@@ -239,6 +350,7 @@ window.addEventListener('resize', () => {
 // Inicialización
 window.addEventListener('load', () => {
     initBoard();
+    initTouchControls();
     document.getElementById('restartButton').style.display = 'none';
     document.getElementById('gameOver').style.display = 'none';
 });
