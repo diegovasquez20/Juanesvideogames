@@ -16,6 +16,7 @@ let particles = [];
 const PARTICLE_COUNT = 15;
 const EXPLOSION_DURATION = 500;
 let isAnimatingExplosion = false;
+let currentScoreAnimation = null;
 
 // Funciones para efectos visuales
 function createParticle(x, y, color) {
@@ -43,52 +44,56 @@ function createExplosionParticles(y) {
 }
 
 function drawParticles() {
+    particles = particles.filter(particle => particle.alpha > 0.1);
+    
     particles.forEach(particle => {
         ctx.save();
         ctx.globalAlpha = particle.alpha;
         ctx.translate(particle.x, particle.y);
         ctx.rotate(particle.rotation);
         
-        // Dibujar partícula con efecto de brillo
+        // Dibujar partícula
         ctx.fillStyle = particle.color;
         ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
         
-        // Añadir brillo
-        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, particle.size);
-        gradient.addColorStop(0, 'rgba(255,255,255,0.5)');
-        gradient.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
-        
-        ctx.restore();
-
         // Actualizar partícula
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.vy += 0.5;
         particle.alpha *= 0.95;
         particle.rotation += 0.1;
+        
+        ctx.restore();
     });
-    
-    particles = particles.filter(particle => particle.alpha > 0.1);
 }
 
 function drawScoreText(text, color = '#FFD700') {
     const x = canvas.width / 2;
     const y = canvas.height / 2;
     
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 3;
-    ctx.font = 'bold 48px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    // Cancelar animación anterior si existe
+    if (currentScoreAnimation) {
+        cancelAnimationFrame(currentScoreAnimation);
+        currentScoreAnimation = null;
+    }
     
-    // Efecto de aparición y desaparición
     let alpha = 1;
-    const animate = () => {
+    function animate() {
+        // Limpiar el área del texto anterior
+        ctx.save();
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawBoard();
+        drawPiece(currentPiece, ctx);
+        
+        ctx.fillStyle = color;
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.globalAlpha = alpha;
+        
         // Sombra para efecto 3D
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 10;
@@ -99,17 +104,21 @@ function drawScoreText(text, color = '#FFD700') {
         ctx.strokeText(text, x, y);
         ctx.fillText(text, x, y);
         
+        ctx.restore();
+        
         alpha -= 0.02;
         if (alpha > 0) {
-            requestAnimationFrame(animate);
+            currentScoreAnimation = requestAnimationFrame(animate);
+        } else {
+            currentScoreAnimation = null;
         }
-    };
+    }
     animate();
-    ctx.restore();
 }
 
 async function animateLineClearing(completedLines) {
     isAnimatingExplosion = true;
+    particles = []; // Limpiar partículas anteriores
     
     // Determinar qué texto mostrar basado en el número de líneas
     let scoreText = '';
@@ -122,27 +131,28 @@ async function animateLineClearing(completedLines) {
     
     completedLines.forEach(y => createExplosionParticles(y));
     
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
     const startTime = Date.now();
     
     return new Promise(resolve => {
         function animate() {
-            if (Date.now() - startTime > EXPLOSION_DURATION) {
-                isAnimatingExplosion = false;
-                particles = [];
-                resolve();
-                return;
-            }
+            // Limpiar el canvas completamente
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             drawBoard();
             drawPiece(currentPiece, ctx);
             drawParticles();
             
             // Mostrar el texto si hay líneas completadas
-            if (scoreText) {
+            if (scoreText && Date.now() - startTime < EXPLOSION_DURATION / 2) {
                 drawScoreText(scoreText);
+            }
+            
+            if (Date.now() - startTime > EXPLOSION_DURATION) {
+                isAnimatingExplosion = false;
+                particles = [];
+                resolve();
+                return;
             }
             
             requestAnimationFrame(animate);
@@ -205,6 +215,8 @@ async function update() {
 }
 
 function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawBoard();
     if (!gameOver && !isPaused) {
         drawPiece(currentPiece, ctx);
@@ -326,6 +338,12 @@ function handleTouchEnd(event) {
 
 // Reset del juego
 function resetGame() {
+    // Limpiar animaciones pendientes
+    if (currentScoreAnimation) {
+        cancelAnimationFrame(currentScoreAnimation);
+        currentScoreAnimation = null;
+    }
+    
     board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
     score = 0;
     lines = 0;
