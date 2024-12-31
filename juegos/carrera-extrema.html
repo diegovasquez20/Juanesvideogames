@@ -67,7 +67,7 @@
         <div id="velocidad">Velocidad: 0 km/h</div>
     </div>
 
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
 
     <div>
         <button id="startButton" class="button" disabled>Cargando...</button>
@@ -89,59 +89,81 @@
         const restartButton = document.getElementById('restartButton');
 
         // Cargar imágenes
-        const carroImg = new Image();
-        const pistaImg = new Image();
+        const carroJugadorImg = new Image();
+        const carroObstaculoImg = new Image();
         
         // Rutas a las imágenes
-        carroImg.src = 'https://diegovasquez2ga.github.io/Juanesvideogames/juegos/imagenes/CarA.jpg';  // Imagen del carro amarillo
-        pistaImg.src = 'https://diegovasquez2ga.github.io/Juanesvideogames/juegos/imagenes/Pista.jpg'; // Imagen de la pista
+        carroJugadorImg.src = 'https://diegovasquez2ga.github.io/Juanesvideogames/juegos/imagenes/CarA.jpg';
+        carroObstaculoImg.src = 'https://diegovasquez2ga.github.io/Juanesvideogames/juegos/imagenes/CarB.jpg';
+
+        // Configuración de carriles
+        const CARRILES = 3;
+        const ANCHO_CARRIL = 100;
+        const ANCHO_CARRETERA = CARRILES * ANCHO_CARRIL;
+        const MARGEN_LATERAL = (canvas.width - ANCHO_CARRETERA) / 2;
 
         let jugador = {
-            x: canvas.width/2,
-            y: canvas.height - 80,
-            ancho: 40,
-            alto: 60,
+            carril: 1,  // Carril central por defecto (0, 1, 2)
+            y: canvas.height - 100,
+            ancho: 60,
+            alto: 100,
             velocidad: 0,
-            puntos: 0,
-            moviendoIzquierda: false,
-            moviendoDerecha: false
+            puntos: 0
         };
 
         let obstaculos = [];
         let juegoActivo = false;
         let idAnimacion;
 
+        function obtenerXCarril(numCarril) {
+            return MARGEN_LATERAL + (numCarril * ANCHO_CARRIL) + (ANCHO_CARRIL - jugador.ancho) / 2;
+        }
+
         function crearObstaculo() {
             return {
-                x: Math.random() * (canvas.width - 40),
-                y: -50,
-                ancho: 40,
-                alto: 40,
+                carril: Math.floor(Math.random() * CARRILES),
+                y: -100,
+                ancho: 60,
+                alto: 100,
                 velocidad: 3 + Math.random() * 2
             };
         }
 
+        function dibujarCarretera() {
+            // Fondo verde (césped)
+            ctx.fillStyle = '#2a5e1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Carretera gris
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(MARGEN_LATERAL, 0, ANCHO_CARRETERA, canvas.height);
+            
+            // Líneas blancas de los carriles
+            ctx.strokeStyle = 'white';
+            ctx.setLineDash([20, 20]);
+            for (let i = 1; i < CARRILES; i++) {
+                ctx.beginPath();
+                ctx.moveTo(MARGEN_LATERAL + (i * ANCHO_CARRIL), 0);
+                ctx.lineTo(MARGEN_LATERAL + (i * ANCHO_CARRIL), canvas.height);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
         function dibujarJugador() {
-            ctx.drawImage(carroImg, jugador.x, jugador.y, jugador.ancho, jugador.alto);
+            const x = obtenerXCarril(jugador.carril);
+            ctx.drawImage(carroJugadorImg, x, jugador.y, jugador.ancho, jugador.alto);
         }
 
         function dibujarObstaculos() {
-            ctx.fillStyle = '#ff0000';
             obstaculos.forEach(obstaculo => {
-                ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
+                const x = obtenerXCarril(obstaculo.carril);
+                ctx.drawImage(carroObstaculoImg, x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
             });
         }
 
         function actualizarJuego() {
             if (!juegoActivo) return;
-
-            // Mover jugador
-            if (jugador.moviendoIzquierda && jugador.x > 0) {
-                jugador.x -= 5;
-            }
-            if (jugador.moviendoDerecha && jugador.x < canvas.width - jugador.ancho) {
-                jugador.x += 5;
-            }
 
             // Actualizar obstáculos
             obstaculos.forEach(obstaculo => {
@@ -157,9 +179,11 @@
             }
 
             // Verificar colisiones
+            const jugadorX = obtenerXCarril(jugador.carril);
             for (let obstaculo of obstaculos) {
-                if (jugador.x < obstaculo.x + obstaculo.ancho &&
-                    jugador.x + jugador.ancho > obstaculo.x &&
+                const obstaculoX = obtenerXCarril(obstaculo.carril);
+                if (jugadorX < obstaculoX + obstaculo.ancho &&
+                    jugadorX + jugador.ancho > obstaculoX &&
                     jugador.y < obstaculo.y + obstaculo.alto &&
                     jugador.y + jugador.alto > obstaculo.y) {
                     gameOver();
@@ -175,12 +199,9 @@
 
         function dibujar() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Dibujar pista (ajustada al tamaño del canvas)
-            ctx.drawImage(pistaImg, 0, 0, canvas.width, canvas.height);
-            
-            dibujarJugador();
+            dibujarCarretera();
             dibujarObstaculos();
+            dibujarJugador();
         }
 
         function bucleJuego() {
@@ -192,9 +213,9 @@
         function iniciarJuego() {
             juegoActivo = true;
             jugador.puntos = 0;
+            jugador.carril = 1;
             obstaculos = [];
             gameOverDiv.style.display = 'none';
-            jugador.x = canvas.width/2 - jugador.ancho/2;
             startButton.textContent = 'Reiniciar Juego';
             bucleJuego();
         }
@@ -208,20 +229,13 @@
 
         // Controles de teclado
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') {
-                jugador.moviendoIzquierda = true;
+            if (!juegoActivo) return;
+            
+            if (e.key === 'ArrowLeft' && jugador.carril > 0) {
+                jugador.carril--;
             }
-            if (e.key === 'ArrowRight') {
-                jugador.moviendoDerecha = true;
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft') {
-                jugador.moviendoIzquierda = false;
-            }
-            if (e.key === 'ArrowRight') {
-                jugador.moviendoDerecha = false;
+            if (e.key === 'ArrowRight' && jugador.carril < CARRILES - 1) {
+                jugador.carril++;
             }
         });
 
@@ -232,26 +246,22 @@
         });
 
         canvas.addEventListener('touchmove', (e) => {
-            if (!touchStartX) return;
+            if (!touchStartX || !juegoActivo) return;
             e.preventDefault();
             
             const touchX = e.touches[0].clientX;
             const diff = touchX - touchStartX;
             
-            if (diff > 0) {
-                jugador.moviendoDerecha = true;
-                jugador.moviendoIzquierda = false;
-            } else {
-                jugador.moviendoIzquierda = true;
-                jugador.moviendoDerecha = false;
+            if (diff > 50 && jugador.carril < CARRILES - 1) {
+                jugador.carril++;
+                touchStartX = touchX;
+            } else if (diff < -50 && jugador.carril > 0) {
+                jugador.carril--;
+                touchStartX = touchX;
             }
-            
-            touchStartX = touchX;
         });
 
         canvas.addEventListener('touchend', () => {
-            jugador.moviendoIzquierda = false;
-            jugador.moviendoDerecha = false;
             touchStartX = null;
         });
 
@@ -260,12 +270,12 @@
 
         // Asegurarse de que las imágenes estén cargadas antes de iniciar
         Promise.all([
-            new Promise(resolve => carroImg.onload = resolve),
-            new Promise(resolve => pistaImg.onload = resolve)
+            new Promise(resolve => carroJugadorImg.onload = resolve),
+            new Promise(resolve => carroObstaculoImg.onload = resolve)
         ]).then(() => {
-            // Las imágenes están listas, el juego puede comenzar
             startButton.disabled = false;
             startButton.textContent = 'Iniciar Juego';
+            dibujarCarretera();
         });
     </script>
 </body>
