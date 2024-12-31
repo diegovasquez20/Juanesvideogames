@@ -166,25 +166,42 @@ async function checkLines() {
     let linesCleared = 0;
     const completedLines = [];
     
+    // Escanear desde abajo hacia arriba para encontrar todas las líneas completas
     for(let y = BOARD_HEIGHT - 1; y >= 0; y--) {
         if(board[y].every(value => value)) {
             completedLines.push(y);
             linesCleared++;
-            lines++;
         }
     }
     
     if(linesCleared > 0) {
+        // Animar todas las líneas completadas
         await animateLineClearing(completedLines);
         
-        completedLines.sort((a, b) => b - a).forEach(y => {
-            board.splice(y, 1);
-            board.unshift(Array(BOARD_WIDTH).fill(0));
-        });
+        // Eliminar todas las líneas completadas
+        completedLines.sort((a, b) => b - a); // Ordenar de abajo hacia arriba
         
+        // Crear un nuevo tablero temporal
+        let newBoard = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        let newBoardRow = BOARD_HEIGHT - 1;
+        
+        // Copiar las líneas no completadas al nuevo tablero
+        for(let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+            if(!completedLines.includes(y)) {
+                newBoard[newBoardRow] = [...board[y]];
+                newBoardRow--;
+            }
+        }
+        
+        // Actualizar el tablero
+        board = newBoard;
+        
+        // Actualizar puntuación y nivel
+        lines += linesCleared;
         score += linesCleared * 100 * level;
         level = Math.floor(lines / 10) + 1;
         
+        // Actualizar UI
         document.getElementById('score').textContent = score;
         document.getElementById('level').textContent = level;
         document.getElementById('lines').textContent = lines;
