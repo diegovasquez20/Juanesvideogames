@@ -10,6 +10,7 @@ const TAP_THRESHOLD = 10;
 let isTouchMoving = false;
 let touchStartTime = 0;
 let touchMoveDistance = 0;
+let pauseButton = document.getElementById('pauseButton');
 
 // Variables para efectos visuales
 let particles = [];
@@ -161,6 +162,49 @@ async function animateLineClearing(completedLines) {
     });
 }
 
+// Función para manejar la pausa
+function togglePause() {
+    if (gameOver || isAnimatingExplosion) return;
+    
+    isPaused = !isPaused;
+    pauseButton.textContent = isPaused ? 'Reanudar' : 'Pausar';
+    
+    if (!isPaused) {
+        // Reanudar el juego
+        const gameLoopFunction = async () => {
+            if (!gameOver && !isPaused) {
+                await update();
+                gameLoop = setTimeout(gameLoopFunction, Math.max(100, 1000 - (level * 50)));
+            }
+        };
+        gameLoop = setTimeout(gameLoopFunction, Math.max(100, 1000 - (level * 50)));
+    } else {
+        // Pausar el juego
+        if (gameLoop) {
+            clearTimeout(gameLoop);
+        }
+        
+        // Dibujar mensaje de pausa
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.font = 'bold 36px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        
+        ctx.strokeText('PAUSA', canvas.width/2, canvas.height/2);
+        ctx.fillText('PAUSA', canvas.width/2, canvas.height/2);
+    }
+}
+
 // Funciones del juego
 async function checkLines() {
     let linesCleared = 0;
@@ -205,6 +249,10 @@ async function checkLines() {
         document.getElementById('score').textContent = score;
         document.getElementById('level').textContent = level;
         document.getElementById('lines').textContent = lines;
+        // En la función resetGame, agregar estas líneas después de la limpieza de UI
+        document.getElementById('startButtonContainer').style.display = 'none';
+        pauseButton.style.display = 'inline-block';
+        pauseButton.textContent = 'Pausar';
     }
 }
 
@@ -407,11 +455,7 @@ document.addEventListener('keydown', async event => {
         case 40: moveDown(); break;
         case 38: rotatePiece(); draw(); break;
         case 32: await hardDrop(); break;
-        case 80:
-            if (!isAnimatingExplosion) {
-                isPaused = !isPaused;
-            }
-            break;
+        case 80: togglePause(); break;  // Tecla 'P' para pausar/reanudar
     }
 });
 
@@ -433,10 +477,18 @@ window.addEventListener('resize', () => {
     drawNextPiece();
 });
 
+// Event Listeners para los botones
+pauseButton.addEventListener('click', togglePause);
+
 // Inicialización
 window.addEventListener('load', () => {
     initBoard();
     initTouchControls();
     document.getElementById('restartButton').style.display = 'none';
     document.getElementById('gameOver').style.display = 'none';
+// Ocultar botón de pausa al inicio
+    pauseButton.style.display = 'none'; 
+ // Mostrar el botón de pausa cuando inicie el juego
+    document.getElementById('startButton').addEventListener('click', () => {
+    pauseButton.style.display = 'inline-block';
 });
