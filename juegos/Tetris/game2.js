@@ -491,4 +491,5 @@ window.addEventListener('load', () => {
  // Mostrar el botón de pausa cuando inicie el juego
     document.getElementById('startButton').addEventListener('click', () => {
     pauseButton.style.display = 'inline-block';
+    });
 });
